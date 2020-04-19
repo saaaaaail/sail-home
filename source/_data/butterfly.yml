@@ -52,7 +52,7 @@ copy:
 #   icon: link || the description
 # ---------------
 social:
-  fa fa-github: https://github.com/saaaaaail || Github
+  fa fa-github: https://gitee.com/saaaaaail || Github
   fa fa-envelope: mailto:649014081@qq.com || Email
   fa fa-rss: /atom.xml || RSS
 
