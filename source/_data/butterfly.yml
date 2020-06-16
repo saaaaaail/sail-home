@@ -346,11 +346,11 @@ reward:
   enable: true
   QR_code:
     - itemlist:
-        img: /img/wechat.jpg
+        img: /img/wechat.png
         text: 微信
     - itemlist:
         img: /img/alipay.jpg
-        text: 支付寶
+        text: 支付宝
 
 # 推薦文章
 related_post:
@@ -505,6 +505,8 @@ subtitle:
   sub:
     - 自律给我自由 
     - Self-discipline makes freedom
+    - 生活本来沉闷，但跑起来就会有风
+    - Life is dull, but there will be wind when you run
 
 # fontawesome圖標
 # 默認使用的是 fontawesome v4版本的圖標
