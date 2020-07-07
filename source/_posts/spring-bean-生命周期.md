@@ -93,7 +93,7 @@ ConfigurableApplicationContext中的refresh()方法，其中几个重要步骤�
             - 判断有没有实现InitializingBean接口，如果实现了则调用afterPropertiesSet方法
             - 如果配置了init-method则执行自定义的初始化方法
           - 【执行后置处理器初始化之后】```wrappedBean = this.applyBeanPostProcessorsAfterInitialization(wrappedBean, beanName);//方法中会执行后置处理器的beanPostProcessor.postProcessAfterInitialization()方法```
-          - 【获得二级缓存中的对象，若不为空说明存在循环依赖，需要第二次暴露bean的引用，解决循环依赖会导致的一种问题】若当前对象A的引用发生了变化，且存在循环依赖，对象为B，要提前创建B，创建B的时候会通过getSingleton()方法获得A，这时候是从三级缓存中取得刚刚实例化的A引用，并放入到二级缓存中，如果A发生了变化，且B创建成功了说明B中的A与当前A不一样，违反了单例，报错
+          - 【获得二级缓存中的对象，若不为空说明存在循环依赖，需要第二次暴露bean的引用，解决循环依赖会导致的一种问题】若当前对象A的引用发生了变化，且存在循环依赖，对象为B，要提前创建B，创建B的时候会通过getSingleton()方法获得A，这时候是从三级缓存中取得刚刚实例化的A引用，并放入到二级缓存中，如果A发生了变化，且B创建成功了说明B中的A与当前A不一样，违反了单例，报错，因此第二次暴露的代码放在下面。
             - ```Object earlySingletonReference = this.getSingleton(beanName, false);//获得二级缓存中的对象```如果这个对象不为null，说明存在循环引用，因为只有循环引用创建时会将缓存从三级移入到二级缓存
         - ```this.registerDisposableBeanIfNecessary(beanName, bean, mbd);//注册Bean的销毁方法```
       - ```if (newSingleton) {this.addSingleton(beanName, singletonObject);}```如果是Singleton作用域，则会调用上述方法，将初始化完毕的实例更新到一级缓存singletonObjects，并清空二级缓存与三级缓存，如果是其他作用域没有这一步。
@@ -102,3 +102,45 @@ ConfigurableApplicationContext中的refresh()方法，其中几个重要步骤�
     - getLifecycleProcessor().onRefresh();//拿到前面定义的生命周期后置处理器，回调onRefresh()
     - publishEvent(new ContextRefreshedEvent(this));//发布容器刷新完成事件
     - LiveBeansView.registerApplicationContext(this);
+
+
+## 为什么要二次暴露bean的引用?
+```java
+ if (earlySingletonExposure) {
+    //尝试从缓存中获取单例，注意后面的参数为false，表示不从第三级缓存singletonFactories中获取，为什么呢？因为这里不允许循环依赖
+	Object earlySingletonReference = getSingleton(beanName, false);
+	//如果不为null，就会进入if条件中，因为earlySingletonReference不为null，说明存在循环引用，
+	//为什么呢？因为第一个处理的时候，会将引用放到singletonFactories缓存中，当循环依赖注入的时候，
+	//会通过singletonFactories中拿到提前暴露的引用，然后放到第二级缓存earlySingletonObjects中。
+	//所以，在这里拿到了earlySingletonReference，表明存在循环引用。
+	if (earlySingletonReference != null) {
+	    //如果相等，那么就什么也不做，将earlySingletonReference返回回去即可
+		if (exposedObject == bean) {
+			exposedObject = earlySingletonReference;
+		}
+		//如果不相等（具体为什么会不相等，下面会单独说），并且有其它bean依赖这个bean
+		else if (!this.allowRawInjectionDespiteWrapping && hasDependentBean(beanName)) {
+		    //拿到依赖这个bean的所有bean
+			String[] dependentBeans = getDependentBeans(beanName);
+			Set<String> actualDependentBeans = new LinkedHashSet<>(dependentBeans.length);
+			for (String dependentBean : dependentBeans) {
+			    //如果存在已经创建完的bean（已经创建完的bean依赖该bean）
+				if (!removeSingletonIfCreatedForTypeCheckOnly(dependentBean)) {
+					actualDependentBeans.add(dependentBean);
+				}
+			}
+			//如果真的存在，那么就会报错，现在创建成功的对象里注入的当前bean与我现在创建完的bean的对象实例不一样，为什么实例化的对象引用与创建完的对象引用会不一样呢，参考上面初始化部分的流程，在Bean初始化前后，bean后置处理器的初始化方法有可能修改bean的实例的，那些在已经判断两个bean不一样了，违反了单例就直接报错了。
+			if (!actualDependentBeans.isEmpty()) {
+				throw new BeanCurrentlyInCreationException(beanName,
+						"Bean with name '" + beanName + "' has been injected into other beans [" +
+						StringUtils.collectionToCommaDelimitedString(actualDependentBeans) +
+						"] in its raw version as part of a circular reference, but has eventually been " +
+						"wrapped. This means that said other beans do not use the final version of the " +
+						"bean. This is often the result of over-eager type matching - consider using " +
+						"'getBeanNamesOfType' with the 'allowEagerInit' flag turned off, for example.");
+			}
+		}
+	}
+}
+
+```
