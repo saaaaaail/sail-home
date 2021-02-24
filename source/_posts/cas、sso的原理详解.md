@@ -42,11 +42,13 @@ PT 是由PGT签发的票据。类似于TGT签发ST，在代理模式下，PT是�
 ![sso流程原理图](1.jpg)
 ### 详细过程:
 1. 用户访问产品 a，域名是 www.a.cn。
-2. 由于用户没有携带在 a 服务器上登录的 a cookie，所以 a 服务器返回 http 重定向，重定向的 url 是 SSO 服务器的地址，同时 url 的 query 中通过参数指明登录成功后，回跳到 a 页面。重定向的url 形如 sso.dxy.cn/login?service=https%3A%2F%2Fwww.a.cn。
+2. 由于用户没有携带在 a 服务器上登录的 a cookie，所以 a 服务器返回 http 重定向，重定向的 url 是 SSO 服务器的地址，同时 url 的 query 中通过参数指明登录成功后，回跳的a 页面。重定向的url 形如 sso.cn/login?service=https%3A%2F%2Fwww.a.cn。
 3. 由于用户没有携带在 SSO 服务器上登录的 TGC（看上面，票据之一），所以 SSO 服务器判断用户未登录，给用户显示统一登录界面。用户在 SSO 的页面上进行登录操作。
-4. 登录成功后，SSO 服务器构建用户在 SSO 登录的 TGT（又一个票据），同时返回一个 http 重定向。这里注意：
+4. 登录成功后，SSO 服务器构建用户在 SSO 登录的 TGT（又一个票据，用于身份验证TGC，并生成ST票据），同时返回一个 http 重定向。这里注意：
 > - 重定向地址为之前写在 query 里的 a 页面。
 > - 重定向地址的 query 中包含 sso 服务器派发的 ST。
-> - 重定向的 http response 中包含写 cookie 的 header。这个 cookie 代表用户在 SSO 中的登录状态，它的值就是 TGC。
+> - 重定向的 http response 中包含写 cookie 的 header。这个 cookie 代表用户在 SSO 中的登录状态，它的值就是 TGC，保存在了sso的域下面，下此访问sso会带上这个cookie。
 5. 浏览器重定向到产品 a。此时重定向的 url 中携带着 SSO 服务器生成的 ST。
-6. 根据 ST，a 服务器向 SSO 服务器发送请求，SSO 服务器验证票据的有效性。验证成功后，a 服务器知道用户已经在 sso 登录了，于是 a 服务器构建用户登录 session，记为 a session。并将 cookie 写入浏览器。注意，此处的 cookie 和 session 保存的是用户在 a 服务器的登录状态，和 CAS 无关。
+6. 根据 ST，a 服务器直接向 SSO 服务器发送请求，SSO 服务器验证票据的有效性。验证成功后，a 服务器知道用户已经在 sso 登录了，于是 a 服务器构建用户登录 session，记为 a session。并将 cookie 写入浏览器。注意，此处的 cookie 和 session 保存的是用户在 a 服务器的登录状态，和 CAS 无关。
+
+> 注意上面只能在同一个浏览器访问的时候才能实现单点登录，因为当用户访问b的时候，这个时候要重定向到sso服务器  sso.cn/login?service=https%3A%2F%2Fwww.b.cn。 由于之前访问a的时候浏览器在sso域下生成了cookie TGC，这时候重定向到sso旧会带上这个TGC，然后sso服务器使用TGC寻找其服务器缓存的TGT对象，并生成一个ST票据，将ST作为query参数重定向回b服务器，这时候b服务器就拿着这个ST直接请求sso服务器验证ST的正确性，验证成功的话，b就构建用户登录 session。

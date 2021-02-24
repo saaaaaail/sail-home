@@ -98,7 +98,7 @@ tags:
  ```
  包括内置的实现了WeakReference弱引用的Entry静态对象，初始化的默认容量16，entry数组，thresholld为重hash阈值，此处为总容量的2/3。
 
- **这里注意构造方法**，传进来的ThreadLocal对象，传到了WeakReference中将这条指向threadLocal的引用封装成了弱引用，那么这个key作为对象的引用在外部的强引用置空以后，这个若引用就只能活到下一次GC，但是在ThreadLocalMap中仍然会残留一个null，value的键值对。造成内存泄漏，因此当一个对象不使用了以后，要主动调用threadLocal.remove()方法删除这条记录。
+ **这里注意构造方法**，传进来的ThreadLocal对象，传到了WeakReference中将这条指向threadLocal的引用封装成了弱引用，那么这个key作为对象的引用在外部的强引用置空以后，这个弱引用就只能活到下一次GC，但是在ThreadLocalMap中仍然会残留一个null，value的键值对。造成内存泄漏，因此当一个对象不使用了以后，要主动调用threadLocal.remove()方法删除这条记录。
 
  ### ThreadLocalMap构造方法
 

@@ -1,0 +1,61 @@
+---
+title: operation-core
+date: 2020-08-25 18:50:21
+tags:
+---
+
+# CAS单点登录
+
+# passport登录
+*.domain.cn 这是跨了三级域名
+*.com这是跨了二级域名
+因此对于一级域
+
+首先访问服务器a，未登录，前端拿着用户名与密码去passport登录并带上服务器a的login url，passport与翻译系统的服务器有相同的二级域名，passport登录成功以后会使用SetCookie将AuthCookie种到相同的domain域名下，这个Cookie里面有个AuthCookie的字段，然后重定向后端这里的Login方法，Login会拿着AuthCookie字段对应的值去请求passport服务端获得用户信息，验证成功就返回用户信息。
+
+# 登录成功后将用户名存入principal，将其他用户名、id、昵称、缩略图存入request.setAttribute
+
+# dealFirstLogin 处理第一次登录
+将用户信息入库，同时添加一个默认权限信息入库。 加锁
+
+# 通过principal构建Security里的AuthenticationToken对象
+
+# 存入Detail对象，包含客户端地址与SessionId，为空则为null
+
+# 调用authenticationManager.authenticate(authRequest)
+由Security里面的一个类解析注入 ProviderManager
+xml里添加PreAuthentionProvider，依赖UserDetailService
+
+# 重写了一下UserDetailService的loadUserByUsername(username)方法 这个方法的目的是生成包含权限信息的UserDetail对象
+这里传的是name是因为在 PreAuthentionProvider 里的依赖项是一个 UserDetailServiceWrapper 将AuthenticationToken 的principal传进去了
+方法里做的就是查 刚刚 登录的那个用户名的 权限列表，得到的是权限的id列表，将这个id列表封装成SimpleGrantedAuthority，就是Spring Security的权限
+
+最后用户名有了，用户权限列表有了，生成User对象 return new User(username, "", auths);
+
+# USer传回到Provider的authenticate方法里面，再次包装成AuthenticationToken对象，包括用户名、权限列表，以及之前存入的Detail对象，返回
+
+# 返回到ProvaideManager对象的authenticate方法里面得到新的AuthenticationToken对象
+
+# 最终回到我自己定义的Filter，获得用户角色列表转成json，存到redis里面，用户角色id的列表也存到redis里面
+最后把之前登录的用户信息，全部存到Session里面request.getSession().setAttribute
+
+
+# 中间进一下logoutFilter 做SecurityContext清理工作，UrlLogoutSuccessHandler里面outSide登录的直接返回成功即可
+
+
+# ExceptionTranslationFilter
+
+# GlobalFilterSecurityInterceptor 
+    会依赖 authenticationManager accessDecisionManager 与securityMetadataSource
+
+# CustomSecurityMetadataSource这个metaDataSource为一开始就注入生成的Bean，在FilterSecurityInterceptor 中会调用getAttribute
+主要继承实现getAttribute方法 根据请求获得 访问请求需要的权限列表
+
+# 最后进入GlobalFilterSecurityInterceptor 类里的beforeInvocation方法，调用决策器决策AuthenticationToken、request的Attribute
+
+
+# 关于session的登录状态问题
+首先在登录过滤器里面获得不创建方式的Session，session不为空且，attribute属性里用户名不为空，就认为登录成功了。否则就要去登录。在passport登录完以后会给cookie里种一个Token，调用后端的登录接口，对于登录的/login请求跳过登录过滤器，进入SecurityContextFilter创建session，保存AuthenticationToken，然后进入自定义的AbstractAuthenticationProcessingFilter，定义这个主要是因为里面有现成的authentacationManager做用户校验。在这个filter里面做用户登录，就是拿着passport给的登录成功的token去请求一下passort验证一下，并返回用户名一些信息，然后把这些信息存到，request里面，session里面，最后过滤器链走完了会commitSession保存到redis。登出操作的时候，一搬要清理Cookie、Session、SecurityContext里的AuthenticationToken。
+
+SecurityMetadataSource的getAttribute方法也很重要，方法返回获取的是资源具有的权限。
+UserDetailsService.loadUserDetails获得用户具有的权限，有交集就成功。

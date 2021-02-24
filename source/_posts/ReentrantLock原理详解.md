@@ -2,6 +2,7 @@
 title: ReentrantLock原理详解
 date: 2020-07-02 15:33:03
 tags:
+- java并发
 ---
 
 # ReentrantLock原理详解
@@ -315,3 +316,13 @@ tryAcquireNanos方法实现了一个有时间限制的自旋尝试获取资源�
         }
     }
 ```
+
+# lock与synchronized的区别
+1. synchronized是关键字，而Lock是一个接口
+2. synchronized会自动释放锁，而Lock必须手动释放锁
+3. synchronized是不可中断的，Lock可以中断也可以不中断
+4. 通过Lock可以知道线程有没有拿到锁，而synchronized不能
+5. synchronized能锁住方法和代码块，而Lock只能锁住代码块
+6. Lock可以使用读锁提高多线程读效率
+7. synchronized是非公平锁，ReentrantLock可以控制是否是公平锁
+8. synchronized获取不到锁就会阻塞，而Lock可以尝试获取锁，一段时间获取不到就放弃获取。

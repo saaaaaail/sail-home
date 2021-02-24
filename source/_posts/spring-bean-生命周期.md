@@ -6,6 +6,18 @@ tags:
 - spring bean
 - spring
 ---
+
+# 先总结主要流程
+1. obtainBeanFactory(); 创建BeanFactory，就是将配置类和xml里的Bean类注册到BeanDefinition中。
+2. 然后注册BeanFactory的一些后置处理器。
+3. 执行BeanFactory的BeanDefinitionRegistryPostProcessor完成Bean的注册工作。
+4. 注册Bean的后置处理器
+5. 初始化国际化相关的类
+6. 初始化事件驱动机制的事件注册表
+7. 注册事件监听器
+8. finishBeanFactoryInitialization开始生成Bean，在Bean的生命周期前后都有后置处理器执行
+9. 后续自己悟
+
 # spring bean 生命周期
 ConfigurableApplicationContext中的refresh()方法，其中几个重要步骤：
 
